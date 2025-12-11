@@ -7,7 +7,7 @@ export default function Home() {
       {Math.random() > 0.5 ? (
         <p>Lucky Number!</p>
       ) : (
-        <p>Try again.</div> 
+        <p>Try again.</p> 
       )}
     </div>
   );
