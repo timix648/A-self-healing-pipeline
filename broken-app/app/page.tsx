@@ -1,7 +1,7 @@
-expot default function Home() {
+export default function Home() {
   return (
     <div style={{ padding: "50px", fontFamily: "sans-serif" }}>
-      <h1>The Self-Healing Demo<h1>
+      <h1>The Self-Healing Demo</h1>
       <p>System Status: ONLINE</p>
       
       {Math.random() > 0.5 ? (
@@ -9,6 +9,6 @@ expot default function Home() {
       ) : (
         <p>Try again.</p> 
       )}
-    </dive>
+    </div>
   );
 }
