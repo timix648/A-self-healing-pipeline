@@ -16,7 +16,7 @@ This project was engineered to satisfy the mandatory requirements for four disti
 | Sponsor Tech | My Implementation |
 | :--- | :--- |
 | Kestra | **Cognitive Orchestration:** Kestra is the central controller, using its Python Agent to execute the entire autonomous workflow (clone, build, analyze, fix) on a fixed schedule. |
-| Cline | **Autonomous Coding (Functional Replacement):** Due to the unavailability of the Cline CLI/MCP, the core functionality is achieved by a dedicated **Gemini Agent** (`auto_fixer.py`) that analyzes error logs and synthesizes code fixes. |
+| Cline | **Autonomous Coding (Functional Replacement):** Due to technical issues i had with the Cline CLI/MCP, the core functionality is achieved by a dedicated **Gemini Agent** (`auto_fixer.py`) that analyzes error logs and synthesizes code fixes. |
 | CodeRabbit | **AI-Reviewed Workflow:** The Gemini Agent pushes the fix to a new branch, triggering a Pull Request (PR). The `.coderabbit.yaml` file ensures the autonomous fix is reviewed by CodeRabbit before merging. |
 | Vercel | **Live Deployment:** Vercel hosts the application. Upon merging the CodeRabbit-approved fix, the CI/CD pipeline triggers an automatic redeployment of the healthy code. |
 
