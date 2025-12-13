@@ -1,0 +1,106 @@
+id: self-healing-pipeline
+namespace: devops.agentic
+
+tasks:
+  - id: autonomous_devops_agent
+    type: io.kestra.plugin.scripts.python.Script
+    containerImage: nikolaik/python-nodejs:python3.11-nodejs20
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      volumes:
+        - kestra_npm_cache:/root/.npm
+        - kestra_pip_cache:/root/.cache/pip
+    beforeCommands:
+      - npm config set fetch-retries 10
+      - npm config set fetch-retry-mintimeout 20000
+      - npm config set fetch-retry-maxtimeout 300000
+      - pip install google-generativeai python-dotenv
+      - git config --global user.email "kestra-agent@example.com"
+      - git config --global user.name "Kestra Self-Healing Agent"
+    env:
+      GEMINI_API_KEY: "{{ secret('GEMINI_API_KEY') }}"
+      GITHUB_TOKEN: "{{ secret('GITHUB_TOKEN') }}"
+      REPO_URL: "https://github.com/timix648/A-self-healing-pipeline.git"
+      
+    script: |
+      import os
+      import subprocess
+      import sys
+      import shutil
+      import re
+
+      # CLONE
+      print("AGENT: Initializing Workspace...")
+      repo_url = os.getenv("REPO_URL")
+      token = os.getenv("GITHUB_TOKEN")
+      if not token:
+          print("ERROR: GITHUB_TOKEN is missing")
+          exit(1)
+      auth_url = repo_url.replace("https://", f"https://timix648:{token}@")
+      clone_dir = "project_code"
+      if os.path.exists(clone_dir):
+          shutil.rmtree(clone_dir)
+
+      #save data
+      subprocess.run(["git", "clone", "--depth", "1", auth_url, clone_dir], check=True)
+      REPO_DIR = os.path.abspath(clone_dir)
+      APP_DIR = os.path.join(REPO_DIR, "broken-app")
+      #INSTALL
+      def run_command(command, cwd=None, ignore_fail=False):
+          try:
+              result = subprocess.run(command, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              if result.returncode != 0 and not ignore_fail:
+                  return False, result.stdout
+              return True, result.stdout
+          except Exception as e:
+              return False, str(e)
+
+      print(f"Installing Node dependencies (Optimized)...")
+      success, output = run_command("npm ci --no-audit --prefer-offline", cwd=APP_DIR)
+      if not success:
+          print(f"NPM INSTALL FAILED:\n{output}")
+          exit(1)
+
+      #BUILD
+      print("Running Strict Build...")
+      success, build_log = run_command("npm run build", cwd=APP_DIR)
+
+      if success:
+          print("Build Passed! Code is clean.")
+          exit(0)
+      
+      #EXECUTE AUTO_FIXER.PY
+      print("AGENT: Build Failed! Handing over to auto_fixer.py...")
+      ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+      clean_log = ansi_escape.sub('', build_log)
+      log_path = os.path.join(REPO_DIR, "build.log")
+      with open(log_path, "w") as f:
+          f.write(clean_log)
+      print(f"Log saved to: {log_path}")
+      print("Running python3 auto_fixer.py...")
+      
+      try:
+          fix_result = subprocess.run(
+              ["python3", "auto_fixer.py"], 
+              cwd=REPO_DIR, 
+              capture_output=True, 
+              text=True
+          )
+          
+          print(fix_result.stdout)
+          print(fix_result.stderr)
+          
+          if fix_result.returncode != 0:
+              print(f"Your auto_fixer.py failed.")
+              exit(1)
+              
+          print("✅ Process Complete.")
+          
+      except Exception as e:
+          print(f"Critical Error executing auto_fixer: {e}")
+          exit(1)
+
+triggers:
+  - id: monitor_every_minute
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/1 * * * *"
